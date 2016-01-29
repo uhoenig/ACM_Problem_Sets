@@ -62,9 +62,9 @@ noDenied   <- 50
 noUndecided  <- 50  
 
 loanDf <- loanData(noApproved, noDenied, noUndecided,
-                   c(10, 150), c(13, 100), c(11, 250),
-                   c(2,  10), c( 2,  5), c( 3,  15),
-                   -0.5, 0.3, 0.5)
+                   c(4, 150), c(10, 100), c(10, 200),
+                   c(1,  20), c( 2,  30), c( 1,  15),
+                   -0.1, 0.6, 0.6, 1221)
 
 #create three regressions to get the slopes and intercepts
 datafit1 <- lm(target1 ~ solvency + PIratio , data=loanDf)
@@ -136,6 +136,29 @@ loanDf <- cbind(loanDf[,c('PIratio','solvency','status')],predicted=label, proba
 # Export dataset
 write.table(loanDf, file = "predictions.csv",row.names=FALSE, na="",col.names=TRUE, sep=";") 
 
+
+###############
+
+b1 = W[1,1]
+b2 = W[1,2]
+b3 = W[1,3]
+
+x <- seq(min(loanDf["PIratio"]), max(loanDf["PIratio"]), length.out = noApproved+noDenied+noUndecided)
+
+#now i create my decision bounderies 
+l12 =  (b2-b1-(W[2,1]-W[2,2])*x) / (W[3,1]-W[3,2])
+l13 =  (b3-b1-(W[2,1]-W[2,3])*x) / (W[3,1]-W[3,3])
+l23 =  (b3-b2-(W[2,2]-W[2,3])*x) / (W[3,2]-W[3,3])
+
+
+# Set up boundaries
+b01 <- data.frame(PIratio=x, solvency=l12, status=rep("1 vs. 2", length(x)))
+b02 <- data.frame(PIratio=x, solvency=l13, status=rep("2 vs. 3", length(x)))
+b03 <- data.frame(PIratio=x, solvency=l23, status=rep("3 vs. 1", length(x)))
+
+##############
+
+
 # Plot result
 pdf("discFunction3C.pdf")
 ggplot(data = loanDf, 
@@ -144,8 +167,40 @@ ggplot(data = loanDf,
   xlab("solvency") +
   ylab("PI ratio") +
   theme_bw()+
-  geom_abline(intercept = intercept1, slope = slope1)+
-  geom_abline(intercept = intercept2, slope = slope2)+
-  geom_abline(intercept = intercept3, slope = slope3)
+  #geom_abline(intercept = intercept1, slope = slope1)+
+  #geom_abline(intercept = intercept2, slope = slope2)+
+  #geom_abline(intercept = intercept3, slope = slope3)
+  geom_line( data = b01) +
+  geom_line( data = b02) + 
+  geom_line( data = b03)
 dev.off()
 ###################################
+
+
+l01 <- ((W[1,2] - W[1,1]) / (W[3,1] - W[3,2])) + ((W[2,2] - W[2,1]) / (W[3,1] - W[3,2])) * x
+l02 <- ((W[1,2] - W[1,3]) / (W[3,3] - W[3,2])) + ((W[2,2] - W[2,3]) / (W[3,3] - W[3,2])) * x
+l03 <- ((W[1,1] - W[1,3]) / (W[3,3] - W[3,1])) + ((W[2,1] - W[2,3]) / (W[3,3] - W[3,1])) * x 
+
+# Set up boundaries
+b01 <- data.frame(PIratio=x, solvency=l01, status=rep("1 vs. 2", length(x)))
+b02 <- data.frame(PIratio=x, solvency=l02, status=rep("2 vs. 3", length(x)))
+b03 <- data.frame(PIratio=x, solvency=l03, status=rep("3 vs. 1", length(x)))
+###########
+
+
+##new try: pairwise regression:
+
+
+datafit12 <- lm(target1 ~ solvency + PIratio , data=loanDf[1:100,])
+#summary(datafit1)
+weights12 <- coef(datafit12)[c("solvency", "PIratio")]
+bias12 <- coef(datafit12)[1]
+
+
+
+
+# Find points where x1 is above x2.
+above<-l12>l23
+# Points always intersect when above=TRUE, then FALSE or reverse
+intersect.points<-which(diff(above)!=0)
+
