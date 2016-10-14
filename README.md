@@ -1,4 +1,4 @@
-# Advanced Computing HW
+# Classification, Regression etc.
 HW for Advanced Computing class
 
 PS1: Generating Data - Training of a discriminant function on the dataset - Classification and Analysis
